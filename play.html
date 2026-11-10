@@ -198,14 +198,14 @@ main {
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.50.0/rive.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.49.4/rive.js"></script>
   <script>
   /* SETTINGS: edit these for your Rive file */
   var RIVE_CONFIG = {
     play: {
       src: "play.riv",           // your Rive file name (same folder as this page)
       // Everything below is optional. Leave as-is and it works it out itself.
-      stateMachine: "",    // auto-detected if empty
+      stateMachine: "State Machine 1",    // named directly so the file loads once (needed for GPU Canvas)
       ratio: "2000 / 1400", // your artboard size (width / height)
       artboard: "",        // default artboard if empty
       fit: "Contain"       // "Contain", "Layout", "Cover", "Fill", "FitWidth", "FitHeight"
@@ -249,6 +249,7 @@ main {
         canvas: canvas,
         autoplay: true,
         autoBind: true,
+        enableGPUCanvas: true,   // needed for shaders (webgl2 2.42.0+)
         layout: new rive.Layout({ fit: fit, alignment: rive.Alignment.Center }),
         onLoad: function () {
           // No state machine named? Find the file's first one and restart with it.
