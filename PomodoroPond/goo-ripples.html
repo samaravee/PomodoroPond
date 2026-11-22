@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goo ripples demo | Koi Pond Pomodoro Timer</title>
+  <meta name="description" content="Play with calm, interactive water.">
+  <style>
+:root {
+  box-sizing: border-box;
+  --bg: #121214;
+  --surface: #1d1d20;
+  --text: #f1f1ee;
+  --muted: #a2a29d;
+  --line: #333336;
+  --accent: #8fb4f5;
+  --accent-text: #0e1a33;
+  /* Change this to match your artboard shape (width / height) */
+  --riv-ratio: 2000 / 1400;
+}
+
+*, *::before, *::after { box-sizing: inherit; }
+
+html { scroll-padding-top: 80px; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+a { color: inherit; }
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Navbar ---------- */
+.site-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 18px clamp(16px, 5vw, 56px);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-weight: 600;
+  text-decoration: none;
+  justify-self: start;
+}
+.nav-links {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+.nav-links a {
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-links a[aria-current="page"] { color: var(--accent); }
+
+.btn {
+  justify-self: end;
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+}
+.btn:hover { filter: brightness(1.08); }
+
+/* ---------- Main ---------- */
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px clamp(16px, 5vw, 56px) 64px;
+}
+
+/* ---------- Rive frame ---------- */
+.rive-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--riv-ratio);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.rive-frame canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.rive-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  pointer-events: none;
+}
+[hidden] { display: none !important; }
+
+/* ---------- Goo ripples (Play page) ---------- */
+#goo-canvas { touch-action: pan-y; cursor: crosshair; }
+.pond-hint {
+  position: absolute;
+  left: 0; right: 0; bottom: 16px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: rgba(220, 240, 250, 0.75);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+.pond-hint.hide { opacity: 0; }
+
+/* ---------- About ---------- */
+.about h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; margin: 0 0 16px; }
+.about p { max-width: 62ch; color: var(--muted); font-size: 1.05rem; }
+.socials { display: flex; gap: 16px; margin-top: 28px; }
+.socials a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.socials a:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- Footer ---------- */
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px clamp(16px, 5vw, 56px);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.footer-icons { display: flex; gap: 16px; }
+.footer-icons a { display: inline-flex; color: var(--muted); }
+.footer-icons a:hover { color: var(--text); }
+.footer-icons svg { width: 18px; height: 18px; }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 720px) {
+  .site-header {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "brand btn" "links links";
+  }
+  .brand { grid-area: brand; }
+  .btn { grid-area: btn; }
+  .nav-links { grid-area: links; justify-content: flex-start; }
+  main { padding-top: 28px; }
+}
+
+  </style>
+</head>
+<body data-page="goo">
+
+  <header class="site-header">
+    <a class="brand" href="index.html">Koi Pond Pomodoro Timer</a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html" data-nav="home">Home</a>
+      <a href="play.html" data-nav="play">Play</a>
+      <a href="about.html" data-nav="about">About</a>
+    </nav>
+    <a class="btn" href="#" target="_blank" rel="noopener">Join Our Discord!</a>
+  </header>
+
+  <main>
+    <div class="rive-frame" id="pond-frame">
+      <canvas id="goo-canvas" aria-label="Interactive water. Move your mouse to make a wake and click to make ripples."></canvas>
+      <div class="rive-msg" id="rive-msg" hidden></div>
+      <div class="pond-hint" id="hint">Move your mouse across the water &middot; click to make a ripple</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>&copy; <span id="year">2026</span> Samara Tekieli. All rights reserved.</span>
+    <div class="footer-icons">
+      <a href="#" aria-label="Instagram" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+      </a>
+      <a href="#" aria-label="LinkedIn" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11v6M8 7.5v.01M12 17v-6M12 13.5c0-1.5 1-2.5 2.5-2.5S17 12 17 13.5V17"/></svg>
+      </a>
+      <a href="#" aria-label="Portfolio" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>
+      </a>
+    </div>
+  </footer>
+  <script>
+  // Navbar highlight and footer year
+  var page = document.body.getAttribute("data-page");
+  document.querySelectorAll(".nav-links a").forEach(function (a) {
+    if (a.getAttribute("data-nav") === page) a.setAttribute("aria-current", "page");
+  });
+  var yr = document.getElementById("year");
+  if (yr) yr.textContent = new Date().getFullYear();
+
+  // Goo ripples
+  (function () {
+const MAXC = 24, MAXT = 128;
+
+const vsSrc = `
+attribute vec2 a;
+void main() { gl_Position = vec4(a, 0.0, 1.0); }
+`;
+
+const fsSrc = `
+precision highp float;
+#define MAXC ${MAXC}
+#define MAXT ${MAXT}
+#define LIFE 1.1     // goo tail lifetime
+#define WLIFE 1.7    // wake fold lines last a bit longer
+#define PI 3.14159265
+// How strong the boat's drag is compared with the click ripples (1.0 = as strong as before).
+// These only change opacity and displacement, never the width or length of the drag.
+#define DRAG_DARK  0.55   // its shadow
+#define DRAG_LIGHT 0.70   // its highlights
+#define DRAG_DISP  0.50   // how much it bends the backdrop
+
+uniform vec2  res;      // css pixels
+uniform float dpr;
+uniform float time;
+uniform float showBg;        // 1 = draw backdrop, 0 = transparent overlay only
+uniform vec4  slosh;         // whole-surface standing-wave amplitudes: x-axis modes 1,2 / y-axis modes 1,2
+uniform vec4  clicks[MAXC];  // x, y, start time, strength
+uniform vec4  pt[MAXT];      // trail points, newest first: x, y, spawn time, strength
+uniform vec3  head;          // the boat: x, y, blob strength
+
+// Smooth noise along a stroke: three sine layers. arc is the distance travelled along the
+// stroke in px, wrapping every 4096px (the frequencies are whole multiples of 2*PI/4096, so
+// it wraps seamlessly). Wavelengths run from about 60px to 180px. Returns roughly -1..1.
+float trailNoise(float arc, float seed)
+{
+    float q = arc * (6.28318530718 / 4096.0);
+    return 0.55 * sin(q * 23.0 + seed)
+         + 0.30 * sin(q * 41.0 + seed * 1.7 + 2.1)
+         + 0.15 * sin(q * 67.0 + seed * 0.6 + 4.0);
+}
+
+// One trail point: a soft blob of goo plus a ring of wake that spreads out from it.
+// Every point is a smooth round source (no segments, so no seams where pieces meet), and
+// the V behind the boat comes from all the rings adding up. Weighted by the spacing to the
+// next older point so the look doesn't change with mouse speed.
+// Each point also carries its distance along the stroke (packed into a.w next to its
+// strength), which drives the variation: the line wiggles sideways, and swells and thins.
+void trailPt(vec2 p, vec4 a, vec4 b, inout float f, inout float wake)
+{
+    if (a.z < -100.0) return;                       // unused slot
+    float t  = time - a.z;
+    float uw = t / WLIFE;
+    if (uw < 0.0 || uw >= 1.0) return;
+
+    float arc = floor(a.w);                         // distance along the stroke
+    float st  = a.w - arc;                          // strength
+
+    // Waviness: slide the point sideways along a slow wave. It starts at nothing at the
+    // boat and grows as the trail ages, so the tail ripples like a snake.
+    vec2 dir = a.xy - b.xy;
+    float dl = length(dir);
+    vec2 c = a.xy;
+    if (dl > 0.5 && dl < 40.0) {
+        vec2 perp = vec2(-dir.y, dir.x) / dl;
+        c += perp * (18.0 * smoothstep(0.0, 0.5, t)) * trailNoise(arc, t);
+    }
+
+    // Thickness and strength variation along the stroke
+    float th = 1.0 + 0.40 * trailNoise(arc, 3.1);
+    float sw = 1.0 + 0.30 * trailNoise(arc, 5.3);
+
+    vec2 d = p - c;
+    float d2 = dot(d, d);
+    if (d2 > 52000.0) return;                       // too far to matter: skip the maths
+
+    float L = (b.z < -100.0) ? 14.0 : dl;
+
+    // Goo: older = softer and much fainter, so it melts away instead of becoming a ridge
+    float u = t / LIFE;
+    if (u < 1.0) {
+        float s = (14.0 + 30.0 * pow(1.0 - u, 0.9)) * th;
+        f += 0.42 * st * sw * min(1.0, L / 14.0) * pow(1.0 - u, 2.0) * exp(-d2 / (2.0 * s * s));
+    }
+
+    // Wake: a soft ring spreading from this point. Soft |d| so the middle has no crease.
+    float r  = (14.0 + 70.0 * t) * (1.0 + 0.15 * trailNoise(arc, 8.7));
+    float x  = sqrt(d2 + 100.0) - r;
+    float ww = (12.0 + 9.0 * t) * th;
+    wake += 0.18 * st * sw * min(1.0, L / 14.0) * pow(1.0 - uw, 1.5) * exp(-x * x / (2.0 * ww * ww));
+}
+
+// Soft "goo" height field
+float dragHeight(vec2 p)
+{
+    float f = 0.0;
+
+    // Trail: every point, newest first
+    float wake = 0.0;
+    for (int i = 0; i < MAXT - 1; i++) {
+        trailPt(p, pt[i], pt[i + 1], f, wake);
+    }
+
+    // Blob right at the boat
+    vec2 d0 = p - head.xy;
+    f += 0.9 * head.z * exp(-dot(d0, d0) / (2.0 * 36.0 * 36.0));
+
+    // Saturate so overlaps fuse into one gooey mass with soft shoulders
+    float h = 1.0 - exp(-1.5 * f);
+    h += wake;
+
+    return h;
+}
+
+// The click rings, kept separate from the drag so each can be balanced on its own
+float clickHeight(vec2 p)
+{
+    float h = 0.0;
+
+    // Clicks: thin rings (each click spawns several, staggered in time)
+    for (int i = 0; i < MAXC; i++) {
+        vec4 c = clicks[i];
+        float t = time - c.z;
+        if (t < 0.0 || t > 6.0) continue;
+        vec2 cd = p - c.xy;
+        float d = sqrt(dot(cd, cd) + 36.0);      // soft radius: no sharp point at the centre
+        float x = d - t * 220.0;
+        float sg = 20.0 + 2.0 * t;               // ring width: thin, softens slightly as it spreads
+        float env = exp(-x * x / (2.0 * sg * sg));
+        env *= exp(-t * 0.6) / sqrt(1.0 + d * 0.01);
+        h += 0.28 * c.w * sin(x * 0.18) * env;
+    }
+    return h;
+}
+
+// Fine vertical stripes over a teal -> blue wash
+vec3 backdrop(vec2 p)
+{
+    vec2 uv = p / res;
+    float x = p.x + 6.0 * sin(p.y * 0.012 + time * 0.4);
+    float stripe = 0.5 + 0.5 * sin(x * 0.42 + time * 0.3);
+    stripe += 0.25 * (0.5 + 0.5 * sin(x * 0.17 - time * 0.2));
+    vec3 teal = vec3(0.27, 0.55, 0.56);
+    vec3 blue = vec3(0.16, 0.27, 0.52);
+    vec3 col = mix(teal, blue, smoothstep(0.22, 0.78, uv.x));
+    col *= 0.78 + 0.32 * stripe;
+    col *= 0.97 + 0.03 * sin(p.y * 2.0);
+    return col;
+}
+
+void main()
+{
+    vec2 p = vec2(gl_FragCoord.x, res.y * dpr - gl_FragCoord.y) / dpr;
+    vec2 uv = p / res;
+    float e = 2.0;
+    float hd  = dragHeight(p);
+    float hdx = dragHeight(p + vec2(e, 0.0));
+    float hdy = dragHeight(p + vec2(0.0, e));
+    float hc  = clickHeight(p);
+    float hcx = clickHeight(p + vec2(e, 0.0));
+    float hcy = clickHeight(p + vec2(0.0, e));
+    vec2 gD = vec2(hdx - hd, hdy - hd) / e * 24.0;   // slope from the boat's drag
+    vec2 gC = vec2(hcx - hc, hcy - hc) / e * 24.0;   // slope from the click rings
+
+    // Whole-surface slosh: a few broad standing waves (spring-driven from JS) that tilt
+    // the entire water back and forth, so the cursor moves ALL of it, a little.
+    vec2 su = p / res;
+    vec2 sg = -PI * vec2(
+        slosh.x * sin(PI * su.x) + 0.9 * slosh.y * sin(2.0 * PI * su.x),
+        slosh.z * sin(PI * su.y) + 0.9 * slosh.w * sin(2.0 * PI * su.y));
+
+    // Shading is built as a premultiplied overlay so it can sit on any background.
+    vec2 Ldir = normalize(vec2(-0.6, -0.8));
+    float toneC = -dot(gC + sg * 0.08, Ldir);
+    float toneD = -dot(gD, Ldir);
+    vec3 darkC  = vec3(0.03, 0.00, 0.14);
+    vec3 lightC = vec3(0.38, 0.70, 0.68);
+
+    // Click rings and slosh
+    float kd = smoothstep(0.05, 0.9, -toneC) * 0.92;
+    vec4 ov = vec4(darkC * kd, kd);
+    float kl = smoothstep(0.05, 0.9, toneC) * 0.65;
+    ov = vec4(lightC * kl + ov.rgb * (1.0 - kl), kl + ov.a * (1.0 - kl));
+
+    // The boat's drag, eased back so it sits with the ripples (same shape, less opacity)
+    kd = smoothstep(0.05, 0.9, -toneD) * 0.92 * DRAG_DARK;
+    ov = vec4(darkC * kd + ov.rgb * (1.0 - kd), kd + ov.a * (1.0 - kd));
+    kl = smoothstep(0.05, 0.9, toneD) * 0.65 * DRAG_LIGHT;
+    ov = vec4(lightC * kl + ov.rgb * (1.0 - kl), kl + ov.a * (1.0 - kl));
+    float kc = smoothstep(0.55, 1.0, hd) * 0.35 * DRAG_DARK;
+    ov = vec4(darkC * kc + ov.rgb * (1.0 - kc), kc + ov.a * (1.0 - kc));
+
+    if (showBg > 0.5) {
+        // Stripes get bent by the goo, with the dark violet vignette on the backdrop only
+        vec3 col = backdrop(p + (gD * DRAG_DISP + gC) * 40.0 + sg * 5.0);
+        float vg = smoothstep(0.30, 0.58, length(uv - 0.5));
+        col = mix(col, vec3(0.0, 0.0, 0.03), vg);
+        col = col * (1.0 - ov.a) + ov.rgb;
+        gl_FragColor = vec4(col, 1.0);
+    } else {
+        gl_FragColor = ov;   // premultiplied alpha, nothing behind it
+    }
+}
+`;
+
+const canvas = document.getElementById('goo-canvas');
+const msg = document.getElementById('rive-msg');
+const hint = document.getElementById('hint');
+const gl = canvas.getContext('webgl', { antialias: false, alpha: true, premultipliedAlpha: true });
+if (!gl) {
+  msg.hidden = false;
+  msg.textContent = "This browser can't run WebGL, so the water can't be shown.";
+  hint.hidden = true;
+  return;
+}
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    document.body.insertAdjacentText('beforeend', gl.getShaderInfoLog(s));
+    throw new Error(gl.getShaderInfoLog(s));
+  }
+  return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsSrc));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsSrc));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, 'a');
+gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+const U = n => gl.getUniformLocation(prog, n);
+const uRes = U('res'), uDpr = U('dpr'), uTime = U('time'), uHead = U('head'), uShowBg = U('showBg'), uSlosh = U('slosh');
+const uClicks = U('clicks[0]'), uPt = U('pt[0]');
+
+const clicks = new Float32Array(MAXC * 4);
+const pts    = new Float32Array(MAXT * 4);   // trail points, newest first
+for (let i = 0; i < MAXC; i++) clicks[i * 4 + 2] = -1000;
+function clearTrail() { for (let i = 0; i < MAXT; i++) pts[i * 4 + 2] = -1000; }
+clearTrail();
+let clickIdx = 0;
+
+let dpr = 1, W = 1, H = 1;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  W = canvas.clientWidth; H = canvas.clientHeight;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas.parentElement);
+else window.addEventListener('resize', resize);
+resize();
+
+const t0 = performance.now();
+const now = () => (performance.now() - t0) / 1000;
+
+const showBg = 1;
+
+// Whole-surface slosh: damped springs (2 modes per axis) driven by mouse motion.
+// w = angular frequency, z = damping (low = a little bounce), amp = how far a full-speed
+// swipe pushes the mode.
+const sl = [
+  { axis: 0, w: 2 * Math.PI * 0.55, z: 0.10, amp: 0.55, x: 0, v: 0 },
+  { axis: 0, w: 2 * Math.PI * 0.95, z: 0.14, amp: 0.30, x: 0, v: 0 },
+  { axis: 1, w: 2 * Math.PI * 0.55, z: 0.10, amp: 0.55, x: 0, v: 0 },
+  { axis: 1, w: 2 * Math.PI * 0.95, z: 0.14, amp: 0.30, x: 0, v: 0 },
+];
+function stepSlosh(dt) {
+  const vn = [Math.max(-1, Math.min(1, bvx / 1600)), Math.max(-1, Math.min(1, bvy / 1600))];
+  for (const m of sl) {
+    const a = vn[m.axis] * m.amp * m.w * m.w - m.w * m.w * m.x - 2 * m.z * m.w * m.v;
+    m.v += a * dt;
+    m.x += m.v * dt;
+  }
+}
+
+// Each click spawns 1-3 rings, a little apart in time, each a bit weaker than the last
+function addClick(x, y) {
+  // a small kick so the whole surface answers the disturbance
+  sl.forEach((m, i) => { m.v += (Math.random() < 0.5 ? -1 : 1) * (i % 2 === 0 ? 0.9 : 0.7); });
+  const n = 1 + Math.floor(Math.random() * 3);
+  let delay = 0;
+  for (let i = 0; i < n; i++) {
+    clicks.set([x, y, now() + delay, 1 - 0.13 * i], clickIdx * 4);
+    clickIdx = (clickIdx + 1) % MAXC;
+    delay += 0.10 + Math.random() * 0.07;
+  }
+}
+// Newest point goes to the front; everything else shifts back one slot
+function pushPoint(x, y, t, s) {
+  pts.copyWithin(4, 0, (MAXT - 1) * 4);
+  pts.set([x, y, t, s], 0);
+}
+
+// Pointer + boat state. The "boat" chases the cursor with drag (a damped spring), so it
+// glides and lags a little. The blob, the trail and the wake all belong to the boat.
+// The boat is simulated in small fixed steps and the trail is laid down at an even spacing
+// along its path, so nothing depends on how often the browser delivers mouse events.
+let lastX = null;
+let curX = 0, curY = 0;                 // raw cursor
+let tx = 0, ty = 0;                     // lightly smoothed cursor (hides event-timing noise)
+let bx = 0, by = 0, bvx = 0, bvy = 0;   // boat position and velocity
+let spf = 0, headS = 0, boatReady = false;
+let lastPx = 0, lastPy = 0, acc = 0;
+let moving = false, pathLen = 0;       // pathLen: distance along the current stroke (px)
+const STEP = 1 / 240;
+
+function hideHint() { hint.classList.add('hide'); }
+
+canvas.addEventListener('pointermove', e => {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  curX = x; curY = y;
+  if (!boatReady || lastX === null) {      // first entry: put the boat under the cursor
+    bx = tx = lastPx = x; by = ty = lastPy = y;
+    bvx = 0; bvy = 0; spf = 0; headS = 0; moving = false;
+    clearTrail();
+    boatReady = true;
+  } else if (Math.hypot(x - lastX, y - lastY) > 2) {
+    hideHint();
+  }
+  lastX = x;
+});
+
+canvas.addEventListener('pointerdown', e => {
+  const r = canvas.getBoundingClientRect();
+  addClick(e.clientX - r.left, e.clientY - r.top);
+  hideHint();
+});
+
+canvas.addEventListener('pointerleave', () => { lastX = null; });
+
+const smooth01 = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+
+let lastFrame = now();
+function frame() {
+  const t = now();
+  const fdt = Math.min(t - lastFrame, 0.05);
+  lastFrame = t;
+
+  if (boatReady) {
+    acc += fdt;
+    while (acc >= STEP) {
+      acc -= STEP;
+      tx += (curX - tx) * (1 - Math.exp(-STEP * 30));
+      ty += (curY - ty) * (1 - Math.exp(-STEP * 30));
+
+      // Drag: damped spring toward the cursor (higher w = tighter, less lag)
+      const w = 2 * Math.PI * 3.2, z = 0.85;
+      bvx += (w * w * (tx - bx) - 2 * z * w * bvx) * STEP;
+      bvy += (w * w * (ty - by) - 2 * z * w * bvy) * STEP;
+      bx += bvx * STEP; by += bvy * STEP;
+
+      spf += (Math.hypot(bvx, bvy) - spf) * (1 - Math.exp(-STEP * 10));   // smoothed speed
+      headS = Math.min(1, 0.35 + spf / 800) * smooth01(8, 70, spf);
+
+      // Lay down trail points at an even spacing along the path
+      if (spf < 30) { lastPx = bx; lastPy = by; moving = false; }
+      else {
+        if (!moving) { moving = true; pathLen = Math.random() * 4096; }   // each stroke varies differently
+        const gap = Math.min(14, Math.max(6, spf * 0.02));
+        let dist = Math.hypot(bx - lastPx, by - lastPy);
+        while (dist >= gap) {                       // place points exactly `gap` apart along the path
+          const k = gap / dist;
+          lastPx += (bx - lastPx) * k; lastPy += (by - lastPy) * k;
+          pathLen += gap;
+          // distance along the stroke (whole px, wraps at 4096) + strength (0..1) in one number
+          pushPoint(lastPx, lastPy, t - acc, Math.floor(pathLen % 4096) + Math.min(headS, 0.999));
+          dist = Math.hypot(bx - lastPx, by - lastPy);
+        }
+      }
+    }
+  }
+  stepSlosh(Math.min(fdt, 0.033));
+
+  gl.uniform2f(uRes, W, H);
+  gl.uniform1f(uDpr, dpr);
+  gl.uniform1f(uTime, t);
+  gl.uniform1f(uShowBg, showBg);
+  gl.uniform4f(uSlosh, sl[0].x, sl[1].x, sl[2].x, sl[3].x);
+  gl.uniform3f(uHead, bx, by, headS);
+  gl.uniform4fv(uClicks, clicks);
+  gl.uniform4fv(uPt, pts);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+  })();
+</script>
+</body>
+</html>
