@@ -13,10 +13,17 @@
   --text: #f1f1ee;
   --muted: #a2a29d;
   --line: #333336;
-  --accent: #8fb4f5;
-  --accent-text: #0e1a33;
-  /* Change this to match your artboard shape (width / height) */
+  --accent: #6AA496;
+  --accent-text: #0b1d19;
+  /* Change these to match your artboard shape (width / height): ratio, and the same two numbers */
   --riv-ratio: 2000 / 1400;
+  --riv-w: 2000;
+  /* The pond zooms in to fill the screen but never crops into this central part of the artboard
+     (set to the pop-out's visible area: 2000 - 2x225 wide, 1400 - 2x300 tall). Set both to 2000 and
+     1400 for no cropping at all. */
+  --safe-w: 2000;
+  --safe-h: 1400;
+  --riv-h: 1400;
 }
 
 *, *::before, *::after { box-sizing: inherit; }
@@ -25,7 +32,8 @@ html { scroll-padding-top: 80px; }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;   /* the page fits the screen, so the pond can fill what is left */
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -83,10 +91,12 @@ a:focus-visible, button:focus-visible {
 /* ---------- Main ---------- */
 main {
   flex: 1;
+  min-height: 0;            /* lets the pond shrink instead of pushing the page taller */
   width: 100%;
-  max-width: 1200px;
   margin: 0 auto;
-  padding: 48px clamp(16px, 5vw, 56px) 64px;
+  padding: 8px 8px 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ---------- Rive frame ---------- */
@@ -94,6 +104,7 @@ main {
   position: relative;
   width: 100%;
   aspect-ratio: var(--riv-ratio);
+  flex: none;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -116,6 +127,94 @@ main {
   pointer-events: none;
 }
 [hidden] { display: none !important; }
+
+/* ---------- Pop-out (picture-in-picture) ---------- */
+.pip-btn {
+  justify-self: end;          /* sits where the Discord button was */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.12s ease;
+}
+.pip-btn svg { width: 18px; height: 18px; flex: none; }
+.pip-btn:hover { filter: brightness(1.08); }
+.pip-btn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+/* Rive canvas when the top of the artboard is cropped (cropTop in RIVE_CONFIG): taller than the
+   frame and shifted up, so the frame shows only the part below the crop */
+.rive-frame canvas.cropped { position: absolute; left: 0; }
+.rive-slot {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Fill as much of the space as possible without cropping: the biggest box of the artboard's
+   shape that fits both the width and the height that are left */
+@supports (width: 1cqw) {
+  .rive-slot { container-type: size; }
+  .rive-slot { overflow: hidden; }
+  .rive-frame {
+    /* Zoom in until the pond fills the whole area (cover), but stop before the central --safe-w x
+       --safe-h part of the artboard would be cropped. Never smaller than 'fit'. */
+    width: min(
+      max(100cqw, calc(100cqh * var(--riv-w) / var(--riv-h))),
+      calc(100cqw * var(--riv-w) / var(--safe-w)),
+      calc(100cqh * var(--riv-w) / var(--safe-h))
+    );
+  }
+}
+.enter-gate {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  text-align: center; padding: 16px;
+}
+.enter-gate button {
+  font: inherit; font-size: 1.1rem; font-weight: 600; cursor: pointer;
+  padding: 14px 28px; border-radius: 999px; border: 0;
+  background: var(--accent, #3aa6b0); color: var(--accent-text, #0e1a33);
+}
+.enter-gate small { opacity: .75; }
+.pip-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  min-height: 200px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  text-align: center;
+  padding: 24px;
+}
+.rive-frame.in-pip {
+  position: absolute;      /* placed and sized by layoutPip() so only the cropped middle shows */
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+}
+.pip-view { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+
+/* Short screens (a phone on its side): tighten the bars so the pond gets the room */
+@media (max-height: 520px) {
+  .site-header { padding-top: 6px; padding-bottom: 6px; }
+  .site-footer { padding-top: 6px; padding-bottom: 6px; }
+  main { padding-top: 6px; padding-bottom: 6px; }
+}
 
 /* ---------- About ---------- */
 .about h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; margin: 0 0 16px; }
@@ -157,7 +256,7 @@ main {
     grid-template-areas: "brand btn" "links links";
   }
   .brand { grid-area: brand; }
-  .btn { grid-area: btn; }
+  .btn, .pip-btn { grid-area: btn; }
   .nav-links { grid-area: links; justify-content: flex-start; }
   main { padding-top: 28px; }
 }
@@ -173,13 +272,23 @@ main {
       <a href="play.html" data-nav="play">Play</a>
       <a href="about.html" data-nav="about">About</a>
     </nav>
-    <a class="btn" href="#" target="_blank" rel="noopener">Join Our Discord!</a>
+    <button type="button" class="pip-btn" id="pip-btn" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><rect x="11.5" y="11" width="8" height="6" rx="1.2" fill="currentColor" stroke="none"/></svg>
+      <span id="pip-label">Pop out timer</span>
+    </button>
   </header>
 
   <main>
-    <div class="rive-frame">
-      <canvas id="rive-canvas" aria-label="Koi pond Pomodoro timer animation"></canvas>
-      <div class="rive-msg" id="rive-msg">Loading animation…</div>
+    <div class="rive-slot" id="rive-slot">
+      <div class="rive-frame">
+        <canvas id="rive-canvas" aria-label="Koi pond Pomodoro timer animation"></canvas>
+        <div class="rive-msg" id="rive-msg">Loading animation…</div>
+      </div>
+      <div class="enter-gate" id="enter-gate" hidden>
+        <button type="button" id="enter-btn">Enter the pond</button>
+        <small>Click to start the sound</small>
+      </div>
+      <div class="pip-ph" id="pip-ph" hidden>The timer is playing in the pop-out window.</div>
     </div>
   </main>
 
@@ -198,17 +307,206 @@ main {
     </div>
   </footer>
 
+  <script>
+  /* Keep-alive frame loop. Browsers stop requestAnimationFrame in background tabs, which
+     would freeze the pond and its timer. While the tab is hidden this keeps the animation
+     ticking from a background worker instead (a few times a second, on a tiny canvas). */
+  (function () {
+    var nativeRAF = window.requestAnimationFrame.bind(window);
+    var nativeCAF = window.cancelAnimationFrame.bind(window);
+    var pending = {};
+    var nextId = 1;
+    var worker = null, fallbackTimer = null;
+    window.__nativeRAF = nativeRAF;
+
+    function run(id, t) {
+      var rec = pending[id];
+      if (!rec) return;
+      delete pending[id];
+      nativeCAF(rec.raf);
+      rec.cb(t);
+    }
+    window.requestAnimationFrame = function (cb) {
+      var id = nextId++;
+      var rec = { cb: cb, raf: 0 };
+      pending[id] = rec;
+      rec.raf = nativeRAF(function (t) { run(id, t); });
+      return id;
+    };
+    window.cancelAnimationFrame = function (id) {
+      var rec = pending[id];
+      if (!rec) return;
+      nativeCAF(rec.raf);
+      delete pending[id];
+    };
+
+    function tick() {
+      var t = performance.now();
+      Object.keys(pending).forEach(function (k) { run(+k, t); });
+    }
+    function startTicker() {
+      if (worker || fallbackTimer) return;
+      try {
+        var url = URL.createObjectURL(new Blob(["setInterval(function(){postMessage(1)},200)"], { type: "text/javascript" }));
+        worker = new Worker(url);
+        worker.onmessage = tick;
+      } catch (e) {
+        fallbackTimer = setInterval(tick, 250);
+      }
+    }
+    function stopTicker() {
+      if (worker) { worker.terminate(); worker = null; }
+      if (fallbackTimer) { clearInterval(fallbackTimer); fallbackTimer = null; }
+    }
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) startTicker(); else stopTicker();
+    });
+    if (document.hidden) startTicker();
+  })();
+  </script>
+  <script>
+  /* Master volume. Rive plays its sound through the browser's Web Audio output. A sound that is
+     already playing (the looping music) does not follow Rive's own volume setting, so instead we
+     put one gain control in front of the speakers for everything Rive plays. This has to be set up
+     BEFORE the Rive runtime loads (the next script tag). */
+  (function () {
+    var masters = [];
+    window.pondMasterVolume = 1;
+    // Browsers keep audio paused until a click. Track every audio context Rive makes and resume
+    // them all on the first click / key / touch (and again on later ones if still paused).
+    var ctxs = [];
+    ["AudioContext", "webkitAudioContext"].forEach(function (nm) {
+      var Orig = window[nm]; if (!Orig) return;
+      var Wrapped = function () {
+        var c = new (Function.prototype.bind.apply(Orig, [null].concat([].slice.call(arguments))))();
+        ctxs.push(c); return c;
+      };
+      Wrapped.prototype = Orig.prototype;
+      try { window[nm] = Wrapped; } catch (e) {}
+    });
+    function resumeAll() {
+      var pending = 0;
+      ctxs.forEach(function (c) {
+        // "closed" contexts are throwaway test contexts (Rive's audio library makes and closes them);
+        // they can never play again, so leave them alone (resuming one is what threw the red errors).
+        if (c.state !== "suspended" && c.state !== "interrupted") return;
+        pending++;
+        try { var p = c.resume(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      });
+      return pending;
+    }
+    var lastAudioLog = "", levelChecked = false;
+    ["pointerdown", "mousedown", "click", "touchend", "keydown"].forEach(function (ev) {
+      window.addEventListener(ev, function () {
+        resumeAll();
+        setTimeout(function () {
+          var live = ctxs.filter(function (c) { return c.state !== "closed"; });
+          var line = "[pond] audio: " + live.length + " live context(s), states: " + live.map(function (c) { return c.state; }).join(",") +
+            " (" + (ctxs.length - live.length) + " closed test context(s) ignored)";
+          if (line !== lastAudioLog) { lastAudioLog = line; console.log(line); }
+          if (!levelChecked) { levelChecked = true; setTimeout(logLevel, 1500); setTimeout(logLevel, 6000); }
+        }, 300);
+      }, true);
+    });
+    window.pondResumeAudio = resumeAll;
+    // Sound meter: after the first click, report whether any sound is actually reaching the speakers.
+    function logLevel() {
+      var peak = 0, n = 0;
+      masters.forEach(function (m) {
+        if (!m.meter || m.ctx.state !== "running") return;
+        n++;
+        var buf = new Float32Array(m.meter.fftSize);
+        m.meter.getFloatTimeDomainData(buf);
+        for (var i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+      });
+      console.log("[pond] sound level: " + (n ? "peak " + peak.toFixed(3) + (peak > 0.001 ? " (sound is playing)" : " (SILENT: nothing is coming out)") : "no running audio output yet") +
+        ", volume slider " + window.pondMasterVolume.toFixed(2));
+    }
+    window.pondSoundLevel = logLevel;
+    var proto = window.AudioNode && AudioNode.prototype;
+    if (!proto || !window.AudioDestinationNode) return;
+    var origConnect = proto.connect, origDisconnect = proto.disconnect;
+    function masterFor(dest) {
+      for (var i = 0; i < masters.length; i++) if (masters[i].ctx === dest.context) return masters[i].gain;
+      var g = dest.context.createGain();
+      g.gain.value = window.pondMasterVolume;
+      origConnect.call(g, dest);
+      var meter = null;
+      try { meter = dest.context.createAnalyser(); meter.fftSize = 2048; origConnect.call(g, meter); } catch (e) {}
+      masters.push({ ctx: dest.context, gain: g, meter: meter });
+      return g;
+    }
+    proto.connect = function (dest) {
+      try {
+        if (dest instanceof AudioDestinationNode) {
+          origConnect.call(this, masterFor(dest));
+          return dest;
+        }
+      } catch (e) {}
+      return origConnect.apply(this, arguments);
+    };
+    proto.disconnect = function (dest) {
+      try {
+        if (dest instanceof AudioDestinationNode) {
+          return origDisconnect.call(this, masterFor(dest));
+        }
+      } catch (e) {}
+      return origDisconnect.apply(this, arguments);
+    };
+    window.pondSetMasterVolume = function (v) {
+      window.pondMasterVolume = v;
+      masters.forEach(function (m) {
+        try { m.gain.gain.setTargetAtTime(v, m.ctx.currentTime, 0.015); } catch (e) { m.gain.gain.value = v; }
+      });
+    };
+  })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.49.4/rive.js"></script>
   <script>
   /* SETTINGS: edit these for your Rive file */
   var RIVE_CONFIG = {
     home: {
-      src: "home.riv",           // your Rive file name (same folder as this page)
+      src: "home-final02.riv",           // your Rive file name (same folder as this page)
       // Everything below is optional. Leave as-is and it works it out itself.
       stateMachine: "State Machine 1",    // named directly so the file loads once (needed for GPU Canvas)
       ratio: "2000 / 1400", // your artboard size (width / height)
       artboard: "",        // default artboard if empty
-      fit: "Contain"       // "Contain", "Layout", "Cover", "Fill", "FitWidth", "FitHeight"
+      fit: "Contain",      // only used when sizing is "contain"
+
+      // ---- Sizing -------------------------------------------------------------
+      // "layout"  = the artboard keeps its full height (top and bottom edges just in view) and
+      //             stretches sideways to fill the screen, between minW and maxW. This is how the
+      //             file is built: horizontal scaling, fixed height.
+      // "contain" = the whole artboard scales as one piece, same shape always, never cropped.
+      //             If layout mode ever misbehaves, change this one word and it is back to normal.
+      sizing: "layout",
+      // Your artboard's min/max size in Rive, in artboard units. 0 = not set.
+      // These keep the page from drawing the artboard smaller/bigger than designed.
+      artH: 1400,                  // the artboard's fixed height in Rive
+      minW: 1400, maxW: 2000,      // how narrow / wide it may get, in artboard units
+      minH: 0, maxH: 0,            // not used: the height is fixed
+      layoutScale: 1,      // extra zoom on the whole artboard (1 = none)
+      cropTop: 300,        // on the page, hide this many artboard units at the top (zooms in). 0 = show it all
+
+      // ---- Volume --------------------------------------------------------------
+      // Your slider's number property in the view model. The page finds it by name
+      // (also inside nested view models). Set volumePath to be exact, e.g. "PondVM/volume".
+      volumeProperty: "volume",
+      volumePath: "",
+      volumeMax: 0,        // 0 = work it out (0 to 1, or 0 to 100). Or set 1 or 100 yourself.
+      // ---- Remember settings ---------------------------------------------------
+      // Saves these view-model properties in this browser and puts them back on the next visit
+      // (both pages share them). Names are matched anywhere in your view models. Missing ones are skipped.
+      remember: true,
+      rememberNumbers: ["volume", "workMinutes", "shortBreakMinutes", "BreakMinutes", "longBreakMinutes"],
+      rememberBooleans: ["muted", "mute", "isMuted"],
+      // Off: the pond starts right away and the sound begins on the visitor's first click.
+      // On: show an "Enter the pond" button first and start everything when it is clicked.
+      soundGate: false,
+      // Pop-out window: the visible part of the artboard, in artboard units. The pond is shown cropped in
+      // by cropX on the left and right and cropY on the top and bottom. width = window width in px.
+      popout: { artW: 2000, artH: 1400, cropX: 225, cropY: 300, width: 620 },
+      volumeToRive: false  // leave false: the master volume above already covers all of Rive's sound. true would apply the slider a second time to new sounds.
     }
   };
 
@@ -242,6 +540,15 @@ main {
     }
 
     var fit = rive.Fit[cfg.fit] !== undefined ? rive.Fit[cfg.fit] : rive.Fit.Contain;
+    try { var q = new URLSearchParams(location.search).get("sizing"); if (q === "layout" || q === "contain") cfg.sizing = q; } catch (e) {}
+    var layoutMode = cfg.sizing === "layout";
+    var lsf = cfg.layoutScale || 1;      // layoutScaleFactor currently in use (adjusted below)
+    function makeLayout() {
+      if (layoutMode) {
+        return new rive.Layout({ fit: rive.Fit.Layout, layoutScaleFactor: lsf, alignment: rive.Alignment.Center });
+      }
+      return new rive.Layout({ fit: fit, alignment: rive.Alignment.Center });
+    }
 
     function start(stateMachine) {
       var options = {
@@ -250,7 +557,7 @@ main {
         autoplay: true,
         autoBind: true,
         enableGPUCanvas: true,   // needed for shaders (webgl2 2.42.0+)
-        layout: new rive.Layout({ fit: fit, alignment: rive.Alignment.Center }),
+        layout: makeLayout(),
         onLoad: function () {
           // No state machine named? Find the file's first one and restart with it.
           if (!stateMachine) {
@@ -262,8 +569,21 @@ main {
               return;
             }
           }
+          // MUSIC FIX. Rive starts the looping music in its very first frame, which runs right after
+          // this. Before the visitor has clicked, Rive gives the artboard volume 0 ("sound not allowed
+          // yet"), and a sound keeps the volume it started with, so the music stayed silent for good
+          // (raising the volume later only affects new sounds). Set full volume now, before that first
+          // frame: the music starts at full level and is heard as soon as the first click unlocks sound.
+          // (The page's volume slider still works: it controls the master volume, not this.)
+          try {
+            var before = r.artboard ? r.artboard.volume : undefined;
+            if (r.artboard) r.artboard.volume = 1;
+            console.log("[pond] music: artboard volume was " + before + " before the first frame, set to 1");
+          } catch (e) { console.warn("[pond] music: could not set the artboard volume", e); }
           // Match the frame shape to the artboard unless a ratio was set
-          if (cfg.ratio) {
+          if (layoutMode) {
+            // layout mode: the frame is sized by sizeBox() below
+          } else if (cfg.ratio) {
             frame.style.aspectRatio = cfg.ratio;
           } else {
             try {
@@ -273,7 +593,10 @@ main {
               }
             } catch (e) {}
           }
-          r.resizeDrawingSurfaceToCanvas();
+          loaded = true;
+          warmUntil = performance.now() + 2500;
+          bindVolume();
+          applySize();
           if (msg) msg.hidden = true;
         },
         onLoadError: function (err) {
@@ -293,18 +616,337 @@ main {
           });
         }
       };
-      if (stateMachine) options.stateMachines = stateMachine;
+      if (stateMachine) options.stateMachine = stateMachine;
       if (cfg.artboard) options.artboard = cfg.artboard;
       r = new rive.Rive(options);
+      // Rive adds its own "tab hidden" handler that stops its animation loop and resets its clock,
+      // which freezes the timer when you switch tabs. Remove it so the keep-alive loop above keeps
+      // the timer running in the background.
+      try {
+        if (r._pageVisibilityHandler) document.removeEventListener("visibilitychange", r._pageVisibilityHandler);
+      } catch (e) {}
     }
 
-    start(cfg.stateMachine);
+
+    // ---------------------------------------------------------------
+    // Performance: render scale (how many pixels the water is drawn at)
+    // ---------------------------------------------------------------
+    var scale = window.devicePixelRatio || 1;   // full native sharpness, same as plain Rive
+    var loaded = false, warmUntil = 0;
+    var pipWin = null;
+
+    function currentScale() {
+      // In a hidden tab (no pop-out) draw on a tiny surface: the timer still ticks, almost no GPU use
+      return (document.hidden && !pipWin) ? 0.03 : scale;
+    }
+    // Layout mode: give the frame the biggest box the screen allows, never beyond the artboard's
+    // max size and, if the screen is smaller than its min size, zoom out instead of cropping.
+    var slotEl = document.getElementById("rive-slot");
+    var lastLog = "";
+    function uncropCanvas() {
+      canvas.classList.remove("cropped");
+      canvas.style.width = ""; canvas.style.height = ""; canvas.style.top = "";
+    }
+    function sizeBox() {
+      var W = slotEl.clientWidth, H = slotEl.clientHeight;
+      if (!W || !H) return 1;
+      var artH = cfg.artH || 1400;
+      // the frame's border is not part of the canvas
+      var bw = Math.max(0, frame.offsetWidth - frame.clientWidth), bh = Math.max(0, frame.offsetHeight - frame.clientHeight);
+      W -= bw; H -= bh;
+      var crop = Math.max(0, cfg.cropTop || 0);
+      var showH = artH - crop;                       // the part of the artboard shown on the page
+      var k = H / showH;                             // css px per artboard unit: the shown part fits exactly
+      if (cfg.minW) k = Math.min(k, W / cfg.minW);   // narrower than min width: zoom out, never crop
+      k *= (cfg.layoutScale || 1);
+      var fw = W;
+      if (cfg.maxW) fw = Math.min(W, cfg.maxW * k);  // wider than max width: side bars
+      var fh = Math.min(H, showH * k);
+      fw = Math.floor(fw); fh = Math.floor(fh);
+      if (fh / showH < k) k = fh / showH;            // after rounding down, keep the shown part in view
+      frame.style.aspectRatio = "auto";
+      frame.style.width = (fw + bw) + "px";
+      frame.style.height = (fh + bh) + "px";
+      // The canvas keeps the artboard's full height; it is shifted up so the top crop is hidden
+      if (crop) {
+        canvas.classList.add("cropped");
+        canvas.style.width = fw + "px";
+        canvas.style.height = Math.round(artH * k) + "px";
+        canvas.style.top = (-Math.round(crop * k)) + "px";
+      } else { uncropCanvas(); }
+      return k;
+    }
+    // Zoom (Rive's layoutScaleFactor). In layout mode Rive makes the artboard (canvas css px / zoom)
+    // units wide, so for k css px per artboard unit the zoom is simply k. It is set BEFORE every draw
+    // (and before the first frame), so the artboard is ~2000 x 1400 from the start instead of
+    // starting at the canvas size and being corrected a frame later (v14 did that, which is why your
+    // log showed 859x601 units and sizes jumping after each resize). A check a moment after each
+    // resize confirms it and, only if Rive disagrees, learns a small correction (trim).
+    var trim = 1;
+    function zoomFor(k) { return Math.min(4, Math.max(0.05, k * trim)); }
+    function setZoom(k) {
+      var z = zoomFor(k);
+      if (Math.abs(z / lsf - 1) < 0.002) return false;
+      lsf = z;
+      if (r) { try { r.layout = makeLayout(); } catch (e) {} }
+      return true;
+    }
+    var checkTimer = 0, checkTries = 0;
+    function scheduleCheck(k, fresh) {
+      if (fresh) checkTries = 0;
+      clearTimeout(checkTimer);
+      checkTimer = setTimeout(function () { checkZoom(k); }, 350);
+    }
+    function checkZoom(k) {
+      if (!r || !loaded) return;
+      var aw = 0, ah = 0;
+      try { aw = r.artboardWidth; ah = r.artboardHeight; } catch (e) {}
+      var cw = canvas.clientWidth, ch = canvas.clientHeight;
+      if (!(aw > 0) || !(cw > 0)) return;
+      var msgLog = "canvas " + cw + "x" + ch + " css px, artboard " + Math.round(aw) + "x" + Math.round(ah) + " units, zoom " + lsf.toFixed(3) + (pipWin ? " (pop-out)" : " (page)");
+      if (msgLog !== lastLog) { lastLog = msgLog; console.log("[pond] " + msgLog); }
+      var gotK = cw / aw;                 // css px per artboard unit Rive is really using
+      if (Math.abs(gotK / k - 1) > 0.02 && checkTries < 3) {
+        checkTries++;
+        trim = trim * k / gotK;
+        setZoom(k);
+        try { r.resizeDrawingSurfaceToCanvas(currentScale()); } catch (e) {}
+        scheduleCheck(k, false);
+        return;
+      }
+      // Only now (settled) is a wrong height worth mentioning
+      if (!pipWin && ah && cfg.artH && Math.abs(ah / cfg.artH - 1) > 0.08) console.warn("[pond] artboard height settled at " + Math.round(ah) + " units, expected about " + cfg.artH + ". Try ?sizing=contain");
+    }
+    function applySize() {
+      var live = layoutMode && !document.hidden;
+      var k = 0;
+      if (live && !pipWin) k = sizeBox();
+      else if (live && pipWin) { uncropCanvas(); if (canvas.clientWidth) k = canvas.clientWidth / cfg.popout.artW; }
+      if (k) setZoom(k);
+      if (!r) return;
+      try { r.resizeDrawingSurfaceToCanvas(currentScale()); } catch (e) {}
+      if (k && loaded) scheduleCheck(k, true);
+    }
+    document.addEventListener("visibilitychange", function () {
+      applySize();
+      warmUntil = performance.now() + 1500;
+    });
+
+
+    // ---------------------------------------------------------------
+    // Volume: your Rive slider (a number property) controls the page's sound
+    // ---------------------------------------------------------------
+    var volumeProp = null;
+    window.pondVolume = 1;
+
+    function findNumber(vmi, name, depth) { return findProp(vmi, "number", name, depth); }
+    function findProp(vmi, kind, name, depth) {
+      var p = null;
+      try { p = vmi[kind](name); } catch (e) {}
+      if (p) return p;
+      if (depth > 2) return null;
+      // look inside nested view models
+      var props = [];
+      try { props = vmi.properties || []; } catch (e) {}
+      for (var i = 0; i < props.length; i++) {
+        if (String(props[i].type).toLowerCase().indexOf("viewmodel") === -1) continue;
+        try {
+          var child = vmi.viewModel(props[i].name);
+          var hit = child && findProp(child, kind, name, depth + 1);
+          if (hit) return hit;
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    function applyVolume(raw) {
+      var v = Number(raw);
+      if (!isFinite(v)) return;
+      var max = cfg.volumeMax > 0 ? cfg.volumeMax : (v > 1 ? 100 : 1);
+      v = Math.min(1, Math.max(0, v / max));
+      window.pondVolume = v;
+      if (window.pondSetMasterVolume) window.pondSetMasterVolume(v);   // everything Rive plays, music included
+      if (cfg.volumeToRive !== false && r) { try { r.volume = v; } catch (e) {} }
+      // any <audio> or <video> on the page
+      document.querySelectorAll("audio, video").forEach(function (m) { try { m.volume = v; } catch (e) {} });
+      // for the Spotify player later: listen for this event and call player.setVolume(v)
+      window.dispatchEvent(new CustomEvent("pond:volume", { detail: v }));
+      if (window.spotifyPlayer && window.spotifyPlayer.setVolume) { try { window.spotifyPlayer.setVolume(v); } catch (e) {} }
+    }
+
+    function bindVolume() {
+      var vmi = null;
+      try { vmi = r.viewModelInstance; } catch (e) {}
+      if (!vmi) { console.warn("[pond] volume: no view model instance is bound to the artboard"); return; }
+      rememberSettings(vmi);
+      var prop = null;
+      if (cfg.volumePath) { try { prop = vmi.number(cfg.volumePath); } catch (e) {} }
+      if (!prop) prop = findNumber(vmi, cfg.volumeProperty || "volume", 0);
+      if (!prop) {
+        console.warn("[pond] volume: could not find a number property named '" + (cfg.volumePath || cfg.volumeProperty) + "'. Set volumePath in RIVE_CONFIG.");
+        return;
+      }
+      volumeProp = prop;
+      if (cfg.remember) {
+        var savedVol = recall("volume");
+        if (typeof savedVol === "number") { try { prop.value = savedVol; } catch (e) {} }
+      }
+      console.log("[pond] volume bound. starting value " + prop.value);
+      applyVolume(prop.value);
+      prop.on(function (ev) {
+        var val = ev && ev.data !== undefined ? ev.data : prop.value;
+        applyVolume(val);
+        if (cfg.remember) store("volume", Number(val));
+      });
+    }
+
+    // ---------------------------------------------------------------
+    // Remember settings between visits (timer lengths, mute, ...)
+    // ---------------------------------------------------------------
+    var STORE_PREFIX = "pondpond:v1:";
+    function store(key, val) {
+      try { localStorage.setItem(STORE_PREFIX + key, JSON.stringify(val)); } catch (e) {}
+    }
+    function recall(key) {
+      try {
+        var raw = localStorage.getItem(STORE_PREFIX + key);
+        return raw === null ? undefined : JSON.parse(raw);
+      } catch (e) { return undefined; }
+    }
+    function remember(vmi, kind, name) {
+      var prop = findProp(vmi, kind, name, 0);
+      if (!prop) return;
+      var saved = recall(name);
+      var okType = kind === "number" ? typeof saved === "number" : typeof saved === "boolean";
+      if (okType && saved !== prop.value) { try { prop.value = saved; } catch (e) {} }
+      prop.on(function (ev) {
+        var val = ev && ev.data !== undefined ? ev.data : prop.value;
+        store(name, kind === "number" ? Number(val) : !!val);
+      });
+      console.log("[pond] remembering '" + name + "' (now " + prop.value + ")");
+    }
+    function rememberSettings(vmi) {
+      if (!cfg.remember) return;
+      (cfg.rememberNumbers || []).forEach(function (n) { if (n !== "volume") remember(vmi, "number", n); });
+      (cfg.rememberBooleans || []).forEach(function (n) { remember(vmi, "boolean", n); });
+    }
+
+    // ---------------------------------------------------------------
+    // Pop-out window (Document Picture-in-Picture: Chrome, Edge, newer Firefox)
+    // ---------------------------------------------------------------
+    var pipBtn = document.getElementById("pip-btn");
+    var pipLabel = document.getElementById("pip-label");
+    var slot = document.getElementById("rive-slot");
+    var ph = document.getElementById("pip-ph");
+    var savedAR = "";
+
+    function restoreFromPip() {
+      if (!pipWin) return;
+      pipWin = null;
+      frame.classList.remove("in-pip");
+      frame.style.aspectRatio = savedAR;
+      frame.style.width = ""; frame.style.height = ""; frame.style.left = ""; frame.style.top = "";
+      pipView = null;
+      slot.insertBefore(frame, slot.firstChild);
+      slot.style.height = "";
+      ph.hidden = true;
+      pipLabel.textContent = "Pop out timer";
+      applySize();
+      setTimeout(applySize, 80);
+    }
+    // The pop-out shows only the middle of the artboard: cropX units are cut off the left and right and
+    // cropY off the top and bottom. The frame is made bigger than the window and centred, so the window
+    // acts as a viewport onto that middle region (cover the window, so resizing it crops a little more
+    // or less instead of leaving gaps).
+    var pipView = null;
+    function layoutPip() {
+      if (!pipWin || !pipView) return;
+      var po = cfg.popout;
+      var viewW = po.artW - 2 * po.cropX, viewH = po.artH - 2 * po.cropY;
+      var W = pipWin.innerWidth, H = pipWin.innerHeight;
+      if (!W || !H) return;
+      var s = Math.max(W / viewW, H / viewH);          // screen pixels per artboard unit
+      var fw = po.artW * s, fh = po.artH * s;
+      frame.style.width = fw + "px";
+      frame.style.height = fh + "px";
+      frame.style.left = ((W - fw) / 2) + "px";
+      frame.style.top = ((H - fh) / 2) + "px";
+      applySize();
+    }
+    function openPip() {
+      var rect = frame.getBoundingClientRect();
+      var po = cfg.popout;
+      var w = po.width;
+      var h = Math.round(w * (po.artH - 2 * po.cropY) / (po.artW - 2 * po.cropX));
+      window.documentPictureInPicture.requestWindow({ width: w, height: h }).then(function (win) {
+        pipWin = win;
+        win.document.title = "Koi Pond Timer";
+        document.querySelectorAll("style").forEach(function (s) {
+          win.document.head.appendChild(s.cloneNode(true));
+        });
+        slot.style.height = rect.height + "px";
+        savedAR = frame.style.aspectRatio;
+        frame.style.aspectRatio = "auto";
+        frame.classList.add("in-pip");
+        uncropCanvas();
+        pipView = win.document.createElement("div");
+        pipView.className = "pip-view";
+        win.document.body.style.margin = "0";
+        win.document.body.appendChild(pipView);
+        pipView.appendChild(frame);
+        ph.hidden = false;
+        pipLabel.textContent = "Bring it back";
+        win.addEventListener("resize", layoutPip);
+        win.addEventListener("pagehide", restoreFromPip);
+        layoutPip();
+        setTimeout(layoutPip, 80);
+      }).catch(function (e) {
+        console.error("Pop-out failed", e);
+      });
+    }
+    if (pipBtn && "documentPictureInPicture" in window) {
+      pipBtn.hidden = false;
+      pipBtn.addEventListener("click", function () {
+        if (pipWin) pipWin.close(); else openPip();
+      });
+    }
+
+    // ---------------------------------------------------------------
+    // Start. Browsers keep sound off until the visitor clicks, so the looping background music would
+    // stay silent on entry. If sound is blocked, wait for one click on "Enter the pond", then start.
+    // ---------------------------------------------------------------
+    function soundIsBlocked() {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        var ctx = new AC();
+        var blocked = ctx.state === "suspended";
+        if (ctx.close) ctx.close();
+        return blocked;
+      } catch (e) { return false; }
+    }
+    var gate = document.getElementById("enter-gate");
+    var started = false;
+    function go() {
+      if (started) return;
+      started = true;
+      gate.hidden = true;
+      applySize();   // size the frame and pick the zoom before Rive draws its first frame
+      start(cfg.stateMachine);
+    }
+    if (cfg.soundGate && soundIsBlocked()) {
+      gate.hidden = false;
+      document.getElementById("enter-btn").addEventListener("click", go);
+      document.getElementById("enter-btn").focus();
+    } else {
+      go();
+    }
 
     // Keep the animation sharp when the container resizes
     if (window.ResizeObserver) {
-      new ResizeObserver(function () { if (r) r.resizeDrawingSurfaceToCanvas(); }).observe(frame);
+      new ResizeObserver(applySize).observe(layoutMode ? slotEl : frame);
     } else {
-      window.addEventListener("resize", function () { if (r) r.resizeDrawingSurfaceToCanvas(); });
+      window.addEventListener("resize", applySize);
     }
   })();
   

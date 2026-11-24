@@ -13,8 +13,8 @@
   --text: #f1f1ee;
   --muted: #a2a29d;
   --line: #333336;
-  --accent: #8fb4f5;
-  --accent-text: #0e1a33;
+  --accent: #6AA496;
+  --accent-text: #0b1d19;
   /* Change this to match your artboard shape (width / height) */
   --riv-ratio: 2000 / 1400;
 }
@@ -134,6 +134,9 @@ main {
   font-size: 0.95rem;
 }
 .socials a:hover { border-color: var(--accent); color: var(--accent); }
+/* The first link (Portfolio) is filled with the green accent; the others stay outlined */
+.socials a.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.socials a.accent:hover { color: var(--accent-text); filter: brightness(1.08); }
 
 /* ---------- Footer ---------- */
 .site-footer {
@@ -184,9 +187,9 @@ main {
     <p>When you press Start, the koi swim away and the pond settles, so nothing competes for your attention while you focus. Soft sound cues mark every transition, and you can mute them any time.</p>
     <p>Built in Rive by Samara Tekieli. <a href="#" target="_blank" rel="noopener">Join our Discord</a> to share feedback.</p>
     <div class="socials">
+      <a class="accent" href="#" target="_blank" rel="noopener">Portfolio</a>
       <a href="#" target="_blank" rel="noopener">Instagram</a>
       <a href="#" target="_blank" rel="noopener">LinkedIn</a>
-      <a href="#" target="_blank" rel="noopener">Portfolio</a>
     </div>
   </main>
 

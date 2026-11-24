@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pond debug</title>
+<style>
+  :root { box-sizing: border-box; --bg:#121214; --surface:#1d1d20; --text:#f1f1ee; --muted:#a2a29d; --line:#333336; --accent:#6AA496; --good:#7fd4a0; --bad:#f08a8a; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.5; }
+  main { max-width:1200px; margin:0 auto; padding:24px clamp(16px,4vw,40px) 64px; }
+  h1 { margin:0 0 4px; font-size:1.5rem; }
+  h2 { margin:28px 0 10px; font-size:1.05rem; }
+  p.sub { margin:0 0 20px; color:var(--muted); max-width:70ch; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:0.8rem; color:var(--muted); }
+  select, input[type=text] { font:inherit; font-size:0.9rem; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:7px; }
+  button { font:inherit; font-size:0.9rem; color:var(--text); background:transparent; border:1px solid var(--line); border-radius:999px; padding:7px 16px; cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); color:#0b1d19; border-color:var(--accent); font-weight:600; }
+  button:disabled { opacity:0.5; cursor:default; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:16px 0; }
+  .stat { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:1.4rem; font-variant-numeric:tabular-nums; }
+  .stat span { font-size:0.75rem; color:var(--muted); }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+  .frame-wrap { display:flex; justify-content:center; }
+  #frame { position:relative; width:100%; aspect-ratio:2000 / 1400; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  #frame canvas { display:block; width:100%; height:100%; }
+  #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; color:var(--muted); pointer-events:none; }
+  [hidden] { display:none !important; }
+  table { border-collapse:collapse; width:100%; font-size:0.85rem; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  pre { margin:0; white-space:pre-wrap; font-size:0.8rem; color:var(--muted); }
+  .note { color:var(--muted); font-size:0.85rem; max-width:75ch; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pond debug</h1>
+  <p class="sub">Runs your .riv by itself, with none of the site's extra code (no pop-out, no background loop, no automatic quality). Use it to find which setting causes the lag or the blur, then send me the report.</p>
+
+  <div class="panel">
+    <div class="controls">
+      <label>File
+        <select id="file"><option>home-final02.riv</option><option>play-v5.riv</option></select>
+      </label>
+      <label>Rive runtime
+        <select id="rt">
+          <option value="2.49.4">webgl2 2.49.4</option>
+          <option value="2.50.0">webgl2 2.50.0</option>
+          <option value="2.40.1">webgl2 2.40.1</option>
+        </select>
+      </label>
+      <label>GPU Canvas (shaders)
+        <select id="gpu"><option value="1">On</option><option value="0">Off</option></select>
+      </label>
+      <label>Render scale (changes live)
+        <select id="scale">
+          <option value="default">Browser default (how it worked before)</option>
+          <option value="0.5">0.5</option>
+          <option value="0.75">0.75</option>
+          <option value="1">1</option>
+          <option value="1.25">1.25</option>
+          <option value="1.5">1.5</option>
+          <option value="2">2</option>
+        </select>
+      </label>
+      <label>Frame width on screen
+        <select id="w">
+          <option value="full">Full width</option>
+          <option value="1000px">1000 px</option>
+          <option value="800px">800 px</option>
+          <option value="600px">600 px</option>
+        </select>
+      </label>
+      <label>State machine
+        <input type="text" id="sm" value="State Machine 1">
+      </label>
+    </div>
+    <div class="row">
+      <button class="primary" id="apply">Apply and reload</button>
+      <span class="note">Runtime, file, GPU Canvas, width and state machine reload the page. Render scale changes instantly.</span>
+    </div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat"><b id="s-fps">-</b><span>frames per second (last 2s)</span></div>
+    <div class="stat"><b id="s-worst">-</b><span>worst frame, ms (last 5s)</span></div>
+    <div class="stat"><b id="s-px">-</b><span>canvas pixels drawn</span></div>
+    <div class="stat"><b id="s-dpr">-</b><span>screen pixel ratio</span></div>
+    <div class="stat"><b id="s-scale">-</b><span>render scale in use</span></div>
+  </div>
+
+  <div class="frame-wrap">
+    <div id="frame">
+      <canvas id="c" aria-label="Rive animation under test"></canvas>
+      <div id="msg">Loading…</div>
+    </div>
+  </div>
+
+  <h2>Automatic test</h2>
+  <p class="note">Cycles through render scales, measuring about 3 seconds idle and 3 seconds with a simulated fast mouse sweep over the water. Takes about 45 seconds. Keep this tab in front and don't touch the mouse. The simulated mouse may not trigger the water in every case, so also try moving your real mouse and watch the numbers above.</p>
+  <div class="row">
+    <button class="primary" id="run">Run test</button>
+    <button id="copy" disabled>Copy report</button>
+    <span class="note" id="progress"></span>
+  </div>
+  <div class="panel" style="margin-top:14px" id="results" hidden>
+    <table>
+      <thead><tr><th>Scale</th><th>Canvas size</th><th>Idle fps</th><th>Moving fps</th><th>Worst frame (ms)</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="note" id="verdict" style="margin:12px 0 0"></p>
+  </div>
+
+  <h2>This device</h2>
+  <div class="panel"><pre id="device"></pre></div>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var nativeRAF = window.requestAnimationFrame.bind(window);
+  var P = new URLSearchParams(location.search);
+  var cfg = {
+    file: P.get("file") || "home-final02.riv",
+    rt: P.get("rt") || "2.49.4",
+    gpu: P.get("gpu") || "1",
+    scale: P.get("scale") || "default",
+    w: P.get("w") || "full",
+    sm: P.has("sm") ? P.get("sm") : "State Machine 1"
+  };
+  ["file", "rt", "gpu", "scale", "w"].forEach(function (k) { $(k).value = cfg[k]; });
+  $("sm").value = cfg.sm;
+  if (cfg.w !== "full") $("frame").style.width = cfg.w;
+
+  $("apply").onclick = function () {
+    var q = new URLSearchParams({
+      file: $("file").value, rt: $("rt").value, gpu: $("gpu").value,
+      scale: $("scale").value, w: $("w").value, sm: $("sm").value
+    });
+    location.search = q.toString();
+  };
+
+  // ---------- device info ----------
+  function gpuName() {
+    try {
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl2") || c.getContext("webgl");
+      if (!gl) return "no WebGL";
+      var e = gl.getExtension("WEBGL_debug_renderer_info");
+      return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    } catch (err) { return "unknown"; }
+  }
+  var device = [
+    "Browser: " + navigator.userAgent,
+    "GPU: " + gpuName(),
+    "CPU cores: " + (navigator.hardwareConcurrency || "unknown"),
+    "Memory (GB, approx): " + (navigator.deviceMemory || "unknown"),
+    "Screen: " + screen.width + "x" + screen.height + " at pixel ratio " + (window.devicePixelRatio || 1),
+    "Pop-out supported: " + ("documentPictureInPicture" in window)
+  ].join("\n");
+  $("device").textContent = device;
+
+  // ---------- frame sampler (uses the browser's own frame callback) ----------
+  var samples = [], last = 0;
+  function sample(t) {
+    nativeRAF(sample);
+    if (last) samples.push([t, t - last]);
+    last = t;
+    while (samples.length && t - samples[0][0] > 5000) samples.shift();
+  }
+  nativeRAF(sample);
+  function stats(windowMs) {
+    var now = performance.now();
+    var s = samples.filter(function (x) { return now - x[0] <= windowMs; });
+    if (s.length < 3) return { fps: 0, worst: 0 };
+    var span = s[s.length - 1][0] - s[0][0];
+    var worst = 0;
+    s.forEach(function (x) { if (x[1] > worst) worst = x[1]; });
+    return { fps: (s.length - 1) * 1000 / span, worst: worst };
+  }
+
+  // ---------- Rive ----------
+  var r = null, canvas = $("c");
+  var scale = cfg.scale;
+
+  function setScale(v) {
+    scale = v;
+    if (!r) return;
+    try {
+      if (v === "default") r.resizeDrawingSurfaceToCanvas();
+      else r.resizeDrawingSurfaceToCanvas(parseFloat(v));
+    } catch (e) { console.error(e); }
+  }
+  $("scale").addEventListener("change", function () { setScale($("scale").value); });
+  window.addEventListener("resize", function () { setScale(scale); });
+
+  function init() {
+    if (typeof rive === "undefined") { $("msg").textContent = "The Rive runtime didn't download. Check your connection."; return; }
+    var opts = {
+      src: cfg.file,
+      canvas: canvas,
+      autoplay: true,
+      autoBind: true,
+      enableGPUCanvas: cfg.gpu === "1",
+      layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),
+      onLoad: function () { $("msg").hidden = true; setScale(scale); },
+      onLoadError: function (e) {
+        console.error("Load error", e);
+        $("msg").textContent = "Couldn't load " + cfg.file + ". Open it on the live site (not from your desktop), and check the console.";
+      }
+    };
+    if (cfg.sm) opts.stateMachines = cfg.sm;
+    r = new rive.Rive(opts);
+  }
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/@rive-app/webgl2@" + cfg.rt + "/rive.js";
+  s.onload = init;
+  s.onerror = function () { $("msg").textContent = "Couldn't download Rive " + cfg.rt + ". Try another runtime version."; };
+  document.body.appendChild(s);
+
+  // ---------- live numbers ----------
+  function effScale() { return scale === "default" ? (window.devicePixelRatio || 1) : parseFloat(scale); }
+  setInterval(function () {
+    var st = stats(2000), w5 = stats(5000);
+    $("s-fps").textContent = st.fps ? st.fps.toFixed(0) : "-";
+    $("s-fps").className = st.fps >= 50 ? "good" : (st.fps && st.fps < 30 ? "bad" : "");
+    $("s-worst").textContent = w5.worst ? w5.worst.toFixed(0) : "-";
+    var mp = canvas.width * canvas.height / 1e6;
+    $("s-px").textContent = canvas.width + " x " + canvas.height + " (" + mp.toFixed(2) + " MP)";
+    $("s-px").style.fontSize = "1rem";
+    $("s-dpr").textContent = (window.devicePixelRatio || 1).toFixed(2);
+    $("s-scale").textContent = scale === "default" ? "default (" + effScale().toFixed(2) + ")" : scale;
+  }, 300);
+
+  // ---------- automatic test ----------
+  var sweeping = false, sweepStart = 0;
+  function fire(x, y) {
+    var o = { clientX: x, clientY: y, bubbles: true, pointerId: 1, pointerType: "mouse", isPrimary: true };
+    canvas.dispatchEvent(new PointerEvent("pointermove", o));
+    canvas.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y, bubbles: true }));
+  }
+  function sweep(t) {
+    if (!sweeping) return;
+    nativeRAF(sweep);
+    var rc = canvas.getBoundingClientRect();
+    var a = (t - sweepStart) / 1000 * 3;
+    fire(rc.left + rc.width * (0.5 + 0.35 * Math.cos(a)), rc.top + rc.height * (0.5 + 0.3 * Math.sin(a * 1.3)));
+  }
+  function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+
+  var report = "";
+  $("run").onclick = async function () {
+    if (!r) return;
+    $("run").disabled = true; $("copy").disabled = true;
+    var rows = $("rows"); rows.innerHTML = ""; $("results").hidden = false; $("verdict").textContent = "";
+    var keep = scale;
+    var steps = ["0.5", "0.75", "1", "1.25", "1.5", "2"];
+    var out = [];
+    for (var i = 0; i < steps.length; i++) {
+      $("progress").textContent = "Testing scale " + steps[i] + " (" + (i + 1) + " of " + steps.length + ")";
+      setScale(steps[i]);
+      await sleep(1200);
+      await sleep(3000);
+      var idle = stats(3000);
+      sweeping = true; sweepStart = performance.now(); nativeRAF(sweep);
+      await sleep(1000);
+      await sleep(3000);
+      var mov = stats(3000);
+      sweeping = false;
+      await sleep(300);
+      var res = { scale: steps[i], size: canvas.width + " x " + canvas.height, idle: idle.fps, moving: mov.fps, worst: mov.worst };
+      out.push(res);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + res.scale + "</td><td>" + res.size + "</td><td>" + res.idle.toFixed(0) + "</td><td class='" + (res.moving >= 50 ? "good" : (res.moving < 30 ? "bad" : "")) + "'>" + res.moving.toFixed(0) + "</td><td>" + res.worst.toFixed(0) + "</td>";
+      rows.appendChild(tr);
+    }
+    setScale(keep);
+    $("scale").value = keep;
+    var best = null;
+    out.forEach(function (o) { if (o.moving >= 50) best = o.scale; });
+    $("verdict").textContent = best
+      ? "Highest scale that stayed at 50 fps or more while moving: " + best + "."
+      : "No scale reached 50 fps while moving. The shader itself is too heavy for this device at this frame size.";
+    report = [
+      "Pond debug report",
+      "File: " + cfg.file + " | runtime webgl2 " + cfg.rt + " | GPU Canvas " + (cfg.gpu === "1" ? "on" : "off") + " | state machine '" + cfg.sm + "' | frame width " + cfg.w,
+      device,
+      "",
+      "scale | canvas | idle fps | moving fps | worst ms"
+    ].concat(out.map(function (o) {
+      return o.scale + " | " + o.size + " | " + o.idle.toFixed(0) + " | " + o.moving.toFixed(0) + " | " + o.worst.toFixed(0);
+    })).concat(["", $("verdict").textContent]).join("\n");
+    $("progress").textContent = "Done.";
+    $("run").disabled = false; $("copy").disabled = false;
+  };
+  $("copy").onclick = function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(report).then(function () { $("progress").textContent = "Report copied."; });
+  };
+})();
+</script>
+</body>
+</html>
