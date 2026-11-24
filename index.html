@@ -159,7 +159,7 @@ main {
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;   /* pond sits right under the header, no gap above it */
   justify-content: center;
 }
 /* Fill as much of the space as possible without cropping: the biggest box of the artboard's
@@ -486,7 +486,7 @@ main {
       minW: 1400, maxW: 2000,      // how narrow / wide it may get, in artboard units
       minH: 0, maxH: 0,            // not used: the height is fixed
       layoutScale: 1,      // extra zoom on the whole artboard (1 = none)
-      cropTop: 300,        // on the page, hide this many artboard units at the top (zooms in). 0 = show it all
+      cropTop: 0,          // on the page, hide this many artboard units at the top (zooms in). 0 = show it all
 
       // ---- Volume --------------------------------------------------------------
       // Your slider's number property in the view model. The page finds it by name

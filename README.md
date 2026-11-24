@@ -101,3 +101,7 @@ GitHub Pages: Settings > Pages > deploy from branch `main`, folder `/ (root)`. O
 - Home: the pond hides the top 300 artboard units (`cropTop: 300` in RIVE_CONFIG; 0 shows it all), so it is drawn larger. The pop-out is unchanged. Play has `cropTop: 0`.
 - The pop-out button replaced "Join Our Discord!" in the header on Home and Play; the old button above the pond is gone. About keeps the Discord button.
 - About: Portfolio is the first link, filled with the green accent; Instagram and LinkedIn stay outlined.
+
+## v17
+- Undid the v16 top crop (`cropTop: 0`): the whole artboard shows again.
+- The pond now sits directly under the header (top-aligned) instead of centred with empty space above it.
