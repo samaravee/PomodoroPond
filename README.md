@@ -105,3 +105,6 @@ GitHub Pages: Settings > Pages > deploy from branch `main`, folder `/ (root)`. O
 ## v17
 - Undid the v16 top crop (`cropTop: 0`): the whole artboard shows again.
 - The pond now sits directly under the header (top-aligned) instead of centred with empty space above it.
+
+## v18
+- Removed the outline, rounded corners and grey fill the page drew around the pond (`.rive-frame` in the CSS), on Home and Play.
